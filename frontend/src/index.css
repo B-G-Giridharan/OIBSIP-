@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(47, 125, 225, 0.22), transparent 45%),
+    radial-gradient(900px 500px at 100% 0%, rgba(244, 185, 66, 0.12), transparent 40%),
+    #071222;
+  color: #e8f1ff;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0;
+    background: white;
+    color: #0b1b33;
+    padding: 24px;
+  }
+}
