@@ -1,12 +1,7 @@
-const fs = require("fs");
-const path = require("path");
-const Database = require("better-sqlite3");
+const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
 
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const DB_PATH = path.join(DATA_DIR, "railreserve.db");
-
-let db;
+let pool;
 
 const SAMPLE_TRAINS = [
   { train_number: "12601", train_name: "Chennai - Mumbai Mail" },
@@ -26,94 +21,100 @@ function ensureDataDir() {
 }
 
 function getDb() {
-  if (!db) {
+  if (!pool) {
     throw new Error("Database has not been initialized.");
   }
-  return db;
+  return pool;
 }
 
-function initializeDatabase() {
-  ensureDataDir();
-  db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+async function initializeDatabase() {
+  pool = mysql.createPool({
+    host: process.env.MYSQL_HOST || "localhost",
+    port: Number(process.env.MYSQL_PORT) || 3306,
+    user: process.env.MYSQL_USER || "root",
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DATABASE || "train_reservation",
+    waitForConnections: true,
+    connectionLimit: 10,
+    dateStrings: true,
+    multipleStatements: true,
+  });
 
-  db.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+      id BIGINT NOT NULL AUTO_INCREMENT,
+      username VARCHAR(100) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_users_username (username)
+    ) ENGINE=InnoDB;
 
     CREATE TABLE IF NOT EXISTS trains (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      train_number TEXT NOT NULL UNIQUE,
-      train_name TEXT NOT NULL
-    );
+      id BIGINT NOT NULL AUTO_INCREMENT,
+      train_number VARCHAR(32) NOT NULL,
+      train_name VARCHAR(255) NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_trains_train_number (train_number)
+    ) ENGINE=InnoDB;
 
     CREATE TABLE IF NOT EXISTS reservations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      pnr TEXT NOT NULL UNIQUE,
-      user_id INTEGER NOT NULL,
-      passenger_name TEXT NOT NULL,
-      train_number TEXT NOT NULL,
-      train_name TEXT NOT NULL,
-      class_type TEXT NOT NULL,
-      journey_date TEXT NOT NULL,
-      source_station TEXT NOT NULL,
-      destination_station TEXT NOT NULL,
-      booking_status TEXT NOT NULL DEFAULT 'CONFIRMED',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (train_number) REFERENCES trains(train_number)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_reservations_user_id ON reservations(user_id);
-    CREATE INDEX IF NOT EXISTS idx_reservations_pnr ON reservations(pnr);
-    CREATE INDEX IF NOT EXISTS idx_reservations_train_number ON reservations(train_number);
-    CREATE INDEX IF NOT EXISTS idx_reservations_journey_date ON reservations(journey_date);
-    CREATE INDEX IF NOT EXISTS idx_reservations_passenger ON reservations(passenger_name);
-    CREATE INDEX IF NOT EXISTS idx_trains_number ON trains(train_number);
+      id BIGINT NOT NULL AUTO_INCREMENT,
+      pnr VARCHAR(32) NOT NULL,
+      user_id BIGINT NOT NULL,
+      passenger_name VARCHAR(255) NOT NULL,
+      train_number VARCHAR(32) NOT NULL,
+      train_name VARCHAR(255) NOT NULL,
+      class_type VARCHAR(64) NOT NULL,
+      journey_date DATE NOT NULL,
+      source_station VARCHAR(255) NOT NULL,
+      destination_station VARCHAR(255) NOT NULL,
+      booking_status VARCHAR(32) NOT NULL DEFAULT 'CONFIRMED',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_reservations_pnr (pnr),
+      KEY idx_reservations_user_id (user_id),
+      KEY idx_reservations_train_number (train_number),
+      KEY idx_reservations_journey_date (journey_date),
+      KEY idx_reservations_passenger (passenger_name),
+      CONSTRAINT fk_reservations_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_reservations_train FOREIGN KEY (train_number) REFERENCES trains(train_number)
+    ) ENGINE=InnoDB;
   `);
 
-  seedIfEmpty();
-  return db;
+  await seedIfEmpty();
+  return pool;
 }
 
-function seedIfEmpty() {
-  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
-  if (userCount === 0) {
+async function seedIfEmpty() {
+  const [userRows] = await pool.execute("SELECT COUNT(*) AS count FROM users");
+  if (Number(userRows[0].count) === 0) {
     const passwordHash = bcrypt.hashSync("Demo@123", 12);
-    db.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)").run(
+    await pool.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", [
       "demo",
       passwordHash
-    );
+    ]);
   }
 
-  const trainCount = db.prepare("SELECT COUNT(*) AS count FROM trains").get().count;
-  if (trainCount === 0) {
-    const insertTrain = db.prepare(
-      "INSERT INTO trains (train_number, train_name) VALUES (?, ?)"
-    );
-    const insertMany = db.transaction((trains) => {
-      for (const train of trains) {
-        insertTrain.run(train.train_number, train.train_name);
-      }
-    });
-    insertMany(SAMPLE_TRAINS);
+  const [trainRows] = await pool.execute("SELECT COUNT(*) AS count FROM trains");
+  if (Number(trainRows[0].count) === 0) {
+    for (const train of SAMPLE_TRAINS) {
+      await pool.execute(
+        "INSERT INTO trains (train_number, train_name) VALUES (?, ?)",
+        [train.train_number, train.train_name]
+      );
+    }
   }
 }
 
-function closeDatabase() {
-  if (db) {
-    db.close();
-    db = null;
+async function closeDatabase() {
+  if (pool) {
+    await pool.end();
+    pool = null;
   }
 }
 
 module.exports = {
-  DB_PATH,
   SAMPLE_TRAINS,
   initializeDatabase,
   getDb,

@@ -1,10 +1,10 @@
 const crypto = require("crypto");
 
-function generatePnr(existsFn) {
+async function generatePnr(existsFn) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const numeric = crypto.randomInt(10_000_000, 100_000_000);
     const pnr = `RR${numeric}`;
-    if (!existsFn(pnr)) {
+    if (!(await existsFn(pnr))) {
       return pnr;
     }
   }

@@ -12,4 +12,8 @@ function errorHandler(err, _req, res, _next) {
   res.status(status).json({ message });
 }
 
-module.exports = { notFound, errorHandler };
+function asyncHandler(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
+module.exports = { notFound, errorHandler, asyncHandler };

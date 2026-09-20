@@ -10,3 +10,14 @@ frontend/node_modules/.tmp/
 *.log
 .env
 .env.local
+
+# Maven
+target/
+
+# Java compiled files
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/

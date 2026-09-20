@@ -6,6 +6,7 @@ const {
   validateReservationPayload,
   validatePnr,
 } = require("../validation/reservation");
+const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ function mapReservation(row) {
   };
 }
 
-router.get("/", (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const pnr = String(req.query.pnr ?? "").trim();
   const passenger = String(req.query.passenger ?? "").trim();
   const trainNumber = String(req.query.trainNumber ?? "").trim();
@@ -40,7 +41,7 @@ router.get("/", (req, res) => {
     params.push(`%${pnr.toUpperCase()}%`);
   }
   if (passenger) {
-    clauses.push("passenger_name LIKE ? COLLATE NOCASE");
+    clauses.push("passenger_name LIKE ?");
     params.push(`%${passenger}%`);
   }
   if (trainNumber) {
@@ -52,85 +53,85 @@ router.get("/", (req, res) => {
     params.push(journeyDate);
   }
 
-  const rows = getDb()
-    .prepare(
-      `SELECT pnr, passenger_name, train_number, train_name, class_type,
-              journey_date, source_station, destination_station, booking_status, created_at
-       FROM reservations
-       WHERE ${clauses.join(" AND ")}
-       ORDER BY datetime(created_at) DESC`
-    )
-    .all(...params);
+  const [rows] = await getDb().execute(
+    `SELECT pnr, passenger_name, train_number, train_name, class_type,
+            journey_date, source_station, destination_station, booking_status, created_at
+     FROM reservations
+     WHERE ${clauses.join(" AND ")}
+     ORDER BY created_at DESC`,
+    params
+  );
 
   res.json({ reservations: rows.map(mapReservation) });
-});
+}));
 
-router.get("/summary", (req, res) => {
+router.get("/summary", asyncHandler(async (req, res) => {
   const db = getDb();
-  const totals = db
-    .prepare(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(CASE WHEN booking_status = 'CONFIRMED' THEN 1 ELSE 0 END) AS confirmed,
-         SUM(CASE WHEN booking_status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled
-       FROM reservations
-       WHERE user_id = ?`
-    )
-    .get(req.user.id);
+  const [totalRows] = await db.execute(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(CASE WHEN booking_status = 'CONFIRMED' THEN 1 ELSE 0 END) AS confirmed,
+       SUM(CASE WHEN booking_status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled
+     FROM reservations
+     WHERE user_id = ?`,
+    [req.user.id]
+  );
+  const totals = totalRows[0];
 
-  const recent = db
-    .prepare(
-      `SELECT pnr, passenger_name, train_number, train_name, class_type,
-              journey_date, source_station, destination_station, booking_status, created_at
-       FROM reservations
-       WHERE user_id = ?
-       ORDER BY datetime(created_at) DESC
-       LIMIT 5`
-    )
-    .all(req.user.id);
+  const [recent] = await db.execute(
+    `SELECT pnr, passenger_name, train_number, train_name, class_type,
+            journey_date, source_station, destination_station, booking_status, created_at
+     FROM reservations
+     WHERE user_id = ?
+     ORDER BY created_at DESC
+     LIMIT 5`,
+    [req.user.id]
+  );
 
   res.json({
     totals: {
-      total: totals.total || 0,
-      confirmed: totals.confirmed || 0,
-      cancelled: totals.cancelled || 0,
+      total: Number(totals.total) || 0,
+      confirmed: Number(totals.confirmed) || 0,
+      cancelled: Number(totals.cancelled) || 0,
     },
     recent: recent.map(mapReservation),
   });
-});
+}));
 
-router.get("/:pnr", (req, res) => {
+router.get("/:pnr", asyncHandler(async (req, res) => {
   const { isValid, value, error } = validatePnr(req.params.pnr);
   if (!isValid) {
     return res.status(400).json({ message: error });
   }
 
-  const row = getDb()
-    .prepare(
-      `SELECT pnr, passenger_name, train_number, train_name, class_type,
-              journey_date, source_station, destination_station, booking_status, created_at
-       FROM reservations
-       WHERE pnr = ? AND user_id = ?`
-    )
-    .get(value, req.user.id);
+  const [rows] = await getDb().execute(
+    `SELECT pnr, passenger_name, train_number, train_name, class_type,
+            journey_date, source_station, destination_station, booking_status, created_at
+     FROM reservations
+     WHERE pnr = ? AND user_id = ?`,
+    [value, req.user.id]
+  );
+  const row = rows[0];
 
   if (!row) {
     return res.status(404).json({ message: "No booking found for this PNR." });
   }
 
   return res.json({ reservation: mapReservation(row) });
-});
+}));
 
-router.post("/", (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const { isValid, errors, value } = validateReservationPayload(req.body);
   if (!isValid) {
     return res.status(400).json({ message: "Please correct the highlighted fields.", errors });
   }
 
   const db = getDb();
-  const train = db
-    .prepare("SELECT train_number, train_name FROM trains WHERE train_number = ?")
-    .get(value.trainNumber);
+  const [trains] = await db.execute(
+    "SELECT train_number, train_name FROM trains WHERE train_number = ?",
+    [value.trainNumber]
+  );
+  const train = trains[0];
 
   if (!train) {
     return res.status(400).json({
@@ -140,61 +141,66 @@ router.post("/", (req, res) => {
   }
 
   try {
-    const pnr = generatePnr((candidate) =>
-      Boolean(db.prepare("SELECT 1 FROM reservations WHERE pnr = ?").get(candidate))
-    );
+    const pnr = await generatePnr(async (candidate) => {
+      const [matches] = await db.execute(
+        "SELECT 1 FROM reservations WHERE pnr = ?",
+        [candidate]
+      );
+      return matches.length > 0;
+    });
 
-    db.prepare(
+    await db.execute(
       `INSERT INTO reservations (
          pnr, user_id, passenger_name, train_number, train_name, class_type,
          journey_date, source_station, destination_station, booking_status
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')`
-    ).run(
-      pnr,
-      req.user.id,
-      value.passengerName,
-      train.train_number,
-      train.train_name,
-      value.classType,
-      value.journeyDate,
-      value.sourceStation,
-      value.destinationStation
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')`,
+      [
+        pnr,
+        req.user.id,
+        value.passengerName,
+        train.train_number,
+        train.train_name,
+        value.classType,
+        value.journeyDate,
+        value.sourceStation,
+        value.destinationStation,
+      ]
     );
 
-    const row = db
-      .prepare(
-        `SELECT pnr, passenger_name, train_number, train_name, class_type,
-                journey_date, source_station, destination_station, booking_status, created_at
-         FROM reservations WHERE pnr = ?`
-      )
-      .get(pnr);
+    const [rows] = await db.execute(
+      `SELECT pnr, passenger_name, train_number, train_name, class_type,
+              journey_date, source_station, destination_station, booking_status, created_at
+       FROM reservations WHERE pnr = ?`,
+      [pnr]
+    );
+    const row = rows[0];
 
     return res.status(201).json({
       message: "Ticket booked successfully.",
       reservation: mapReservation(row),
     });
   } catch (error) {
-    if (String(error.message).includes("UNIQUE constraint failed: reservations.pnr")) {
+    if (error.code === "ER_DUP_ENTRY" && String(error.message).includes("pnr")) {
       return res.status(409).json({
         message: "A duplicate PNR was generated. Please try booking again.",
       });
     }
     throw error;
   }
-});
+}));
 
-router.delete("/:pnr", (req, res) => {
+router.delete("/:pnr", asyncHandler(async (req, res) => {
   const { isValid, value, error } = validatePnr(req.params.pnr);
   if (!isValid) {
     return res.status(400).json({ message: error });
   }
 
   const db = getDb();
-  const existing = db
-    .prepare(
-      "SELECT pnr, booking_status FROM reservations WHERE pnr = ? AND user_id = ?"
-    )
-    .get(value, req.user.id);
+  const [existingRows] = await db.execute(
+    "SELECT pnr, booking_status FROM reservations WHERE pnr = ? AND user_id = ?",
+    [value, req.user.id]
+  );
+  const existing = existingRows[0];
 
   if (!existing) {
     return res.status(404).json({ message: "No booking found for this PNR." });
@@ -204,22 +210,23 @@ router.delete("/:pnr", (req, res) => {
     return res.status(409).json({ message: "This reservation is already cancelled." });
   }
 
-  db.prepare(
-    "UPDATE reservations SET booking_status = 'CANCELLED' WHERE pnr = ? AND user_id = ?"
-  ).run(value, req.user.id);
+  await db.execute(
+    "UPDATE reservations SET booking_status = 'CANCELLED' WHERE pnr = ? AND user_id = ?",
+    [value, req.user.id]
+  );
 
-  const row = db
-    .prepare(
-      `SELECT pnr, passenger_name, train_number, train_name, class_type,
-              journey_date, source_station, destination_station, booking_status, created_at
-       FROM reservations WHERE pnr = ? AND user_id = ?`
-    )
-    .get(value, req.user.id);
+  const [rows] = await db.execute(
+    `SELECT pnr, passenger_name, train_number, train_name, class_type,
+            journey_date, source_station, destination_station, booking_status, created_at
+     FROM reservations WHERE pnr = ? AND user_id = ?`,
+    [value, req.user.id]
+  );
+  const row = rows[0];
 
   return res.json({
     message: "Reservation cancelled successfully.",
     reservation: mapReservation(row),
   });
-});
+}));
 
 module.exports = router;

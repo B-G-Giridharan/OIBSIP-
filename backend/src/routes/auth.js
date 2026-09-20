@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const { getDb } = require("../db/database");
 const { COOKIE_NAME, signUserToken, requireAuth } = require("../middleware/auth");
+const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ function cookieOptions() {
   };
 }
 
-router.post("/login", (req, res) => {
+router.post("/login", asyncHandler(async (req, res) => {
   const username = String(req.body?.username ?? "").trim();
   const password = String(req.body?.password ?? "");
 
@@ -23,9 +24,11 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ message: "Username and password are required." });
   }
 
-  const user = getDb()
-    .prepare("SELECT id, username, password_hash FROM users WHERE username = ?")
-    .get(username);
+  const [users] = await getDb().execute(
+    "SELECT id, username, password_hash FROM users WHERE username = ?",
+    [username]
+  );
+  const user = users[0];
 
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({
@@ -39,7 +42,7 @@ router.post("/login", (req, res) => {
     message: "Login successful.",
     user: { id: user.id, username: user.username },
   });
-});
+}));
 
 router.post("/logout", (_req, res) => {
   res.clearCookie(COOKIE_NAME, { path: "/" });

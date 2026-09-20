@@ -4,7 +4,7 @@ const NAME_PATTERN = /^[A-Za-z][A-Za-z .'-]{1,79}$/;
 const TRAIN_NUMBER_PATTERN = /^\d{4,6}$/;
 const STATION_PATTERN = /^[A-Za-z][A-Za-z .'-]{1,79}$/;
 
-function todayIsoDate() {
+export function todayIsoDate() {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");

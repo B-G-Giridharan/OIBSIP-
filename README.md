@@ -2,7 +2,7 @@
 
 Smart Online Train Reservation System
 
-RailReserve is a full-stack web application for booking, viewing, and cancelling train reservations. It uses a React TypeScript frontend, an Express REST API, and SQLite with parameterized queries.
+RailReserve is a full-stack web application for booking, viewing, and cancelling train reservations. It uses a React TypeScript frontend, an Express REST API, and MySQL with parameterized queries.
 
 ## Features
 
@@ -19,7 +19,7 @@ RailReserve is a full-stack web application for booking, viewing, and cancelling
 
 - Frontend: React 18, TypeScript, Vite, Tailwind CSS, React Router
 - Backend: Node.js, Express
-- Database: SQLite (`better-sqlite3`)
+- Database: MySQL (`mysql2`)
 - Auth: bcrypt password hashing and HTTP-only JWT cookies
 - Validation: shared rules on both client and server
 
@@ -28,7 +28,6 @@ RailReserve is a full-stack web application for booking, viewing, and cancelling
 ```text
 .
 ├── backend/
-│   ├── data/                      # SQLite file created at runtime
 │   └── src/
 │       ├── db/                    # Database init and seeding
 │       ├── middleware/            # Auth and error handling
@@ -104,31 +103,33 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-## How to initialize the SQLite database
+## MySQL database setup
 
-The database file is created automatically on first backend start at:
+The backend uses `train_reservation` on MySQL at `localhost:3306` by default. Configure the credentials through environment variables:
 
-`backend/data/railreserve.db`
+- `MYSQL_HOST` — default `localhost`
+- `MYSQL_PORT` — default `3306`
+- `MYSQL_DATABASE` — default `train_reservation`
+- `MYSQL_USER` — default `root`
+- `MYSQL_PASSWORD` — required; never store it in source code
 
-Sample trains and the demo user are seeded if the tables are empty.
+The tables are created automatically on backend startup. To initialize without starting the API:
 
-To initialize without starting the API:
-
-```bash
-npm run init-db
-```
-
-or
-
-```bash
+```powershell
 cd backend
+$env:MYSQL_USER = "root"
+$env:MYSQL_PASSWORD = "your-mysql-password"
 npm run init-db
 ```
+
+The complete schema is also available in [java-mysql/schema.sql](java-mysql/schema.sql).
 
 ## How to run the backend
 
-```bash
+```powershell
 cd backend
+$env:MYSQL_USER = "root"
+$env:MYSQL_PASSWORD = "your-mysql-password"
 npm start
 ```
 
@@ -145,6 +146,11 @@ Optional environment variables:
 
 - `PORT` — API port (default `4000`)
 - `CLIENT_ORIGIN` — frontend origin for CORS (default `http://localhost:5173`)
+- `MYSQL_HOST` — MySQL host (default `localhost`)
+- `MYSQL_PORT` — MySQL port (default `3306`)
+- `MYSQL_DATABASE` — database name (default `train_reservation`)
+- `MYSQL_USER` — database user (default `root`)
+- `MYSQL_PASSWORD` — required MySQL password
 - `JWT_SECRET` — signing secret for session tokens
 - `NODE_ENV` — set to `production` to mark cookies `Secure`
 
@@ -168,7 +174,7 @@ npm run dev
 - Username: `demo`
 - Password: `Demo@123`
 
-These credentials are stored as a bcrypt hash in SQLite. Authentication is performed only on the backend.
+These credentials are stored as a bcrypt hash in MySQL. Authentication is performed only on the backend.
 
 ## API endpoints
 

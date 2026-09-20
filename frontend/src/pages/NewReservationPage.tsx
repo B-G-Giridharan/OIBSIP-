@@ -7,7 +7,7 @@ import { Modal } from "../components/Modal";
 import { useToast } from "../context/ToastContext";
 import { api, ApiError } from "../services/api";
 import { CLASS_TYPES, type FieldErrors, type Reservation, type ReservationPayload, type Train } from "../types";
-import { isNumericTrainNumber, validateReservationForm } from "../utils/validation";
+import { isNumericTrainNumber, todayIsoDate, validateReservationForm } from "../utils/validation";
 
 const emptyForm: ReservationPayload = {
   passengerName: "",
@@ -159,6 +159,7 @@ export function NewReservationPage() {
           <Field label="Date of Journey" error={errors.journeyDate}>
             <TextInput
               type="date"
+              min={todayIsoDate()}
               value={form.journeyDate}
               onChange={(event) => update("journeyDate", event.target.value)}
             />
