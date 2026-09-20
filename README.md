@@ -1,6 +1,9 @@
 **TASK 1** · Online Reservation System 
+
 **Objective:** Build a GUI-based train/transport reservation system where users can log in, book tickets, and cancel bookings using a PNR number. 
+
 **Tech Stack:** Java (Swing or JavaFX for GUI), JDBC, MySQL or SQLite 
+
 **Feature Checklist:** 
 ● [ ] Login Form: username and password fields; access denied for invalid credentials 
 ● [ ] Reservation Form: fields for passenger name, train number, train name (auto-populated from train number), class type, date of journey, source station, destination station
@@ -9,6 +12,7 @@
 ● [ ] Cancellation Form: PNR number input field and Fetch button that retrieves and displays the full booking details 
 ● [ ] Confirm cancellation button with an "Are you sure?" dialog; removes the booking from the database on confirmation
 ● [ ] Basic input validation: no empty required fields, valid date format, numeric train number
+
 **Self-Sourcing Guideline:** Search "Java Swing JDBC login form tutorial" on YouTube for GUI and database connection patterns. For database setup, search "SQLite Java JDBC Maven setup" (SQLite requires no separate server). Reference the official Java documentation for JFrame, JTextField, JComboBox, and PreparedStatement for SQL injection prevention. 
 
 
