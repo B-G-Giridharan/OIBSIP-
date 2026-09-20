@@ -235,19 +235,20 @@ Add screenshots of the following screens after a local demo:
 - My Bookings
 - Cancel Reservation
 
-Place image files in a `docs/screenshots/` folder and link them here.
-
--- 
 
 ## MYSQL WORKBENCH
-## user database -
-<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/f8fa49da-0380-41c7-90dc-fd0447abc392" />
-## train database
-<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/2a4e968f-4f9e-44db-b886-8d62219891e7" />
-## reservations database
-<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/9ea19ae8-b302-43f3-8213-d844e6dc8af7" />
 
---
+## user database -
+
+<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/f8fa49da-0380-41c7-90dc-fd0447abc392" />
+
+## train database
+
+<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/2a4e968f-4f9e-44db-b886-8d62219891e7" />
+
+## reservations database
+
+<img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/9ea19ae8-b302-43f3-8213-d844e6dc8af7" />
 
 ## project screenshots
 ## Login page 
@@ -277,13 +278,9 @@ Place image files in a `docs/screenshots/` folder and link them here.
 - Payment gateway integration
 - Role-based access for station staff
 
---
-
 ## Security notes
 
 - Passwords are hashed with bcrypt and never stored in plain text
 - SQL uses prepared statements for all user-supplied values
 - JWT session cookies are HTTP-only
 - Frontend validation is mirrored and enforced on the server
-
---
