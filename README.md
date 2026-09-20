@@ -6,11 +6,17 @@
 
 **Feature Checklist:** 
 ● [ ] Login Form: username and password fields; access denied for invalid credentials 
+
 ● [ ] Reservation Form: fields for passenger name, train number, train name (auto-populated from train number), class type, date of journey, source station, destination station
+
 ● [ ] Insert/Book button that saves the reservation to the database and generates a PNR number (auto-generated unique ID) 
+
 ● [ ] Confirmation dialog showing booking details after successful reservation
+
 ● [ ] Cancellation Form: PNR number input field and Fetch button that retrieves and displays the full booking details 
+
 ● [ ] Confirm cancellation button with an "Are you sure?" dialog; removes the booking from the database on confirmation
+
 ● [ ] Basic input validation: no empty required fields, valid date format, numeric train number
 
 **Self-Sourcing Guideline:** Search "Java Swing JDBC login form tutorial" on YouTube for GUI and database connection patterns. For database setup, search "SQLite Java JDBC Maven setup" (SQLite requires no separate server). Reference the official Java documentation for JFrame, JTextField, JComboBox, and PreparedStatement for SQL injection prevention. 
@@ -245,12 +251,18 @@ Place image files in a `docs/screenshots/` folder and link them here.
 
 ## project screenshots
 ## Login page 
+
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/1142c315-d552-4eaf-9372-296897d28cc6" />
+
 ## Dashboard
+
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/28c5cfb6-6c12-4439-8995-2c664c1801d7" />
+
 ## Booking page
+
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/f583e01b-74e2-46b4-90b4-3ccdeb965b4e" />
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/4e261812-c79b-418f-a037-82ad96412fc0" />
+
 ## Cancellations
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/636a1a46-3949-4898-837d-0d0ebea5df22" />
 
@@ -265,9 +277,13 @@ Place image files in a `docs/screenshots/` folder and link them here.
 - Payment gateway integration
 - Role-based access for station staff
 
+--
+
 ## Security notes
 
 - Passwords are hashed with bcrypt and never stored in plain text
 - SQL uses prepared statements for all user-supplied values
 - JWT session cookies are HTTP-only
 - Frontend validation is mirrored and enforced on the server
+
+--
